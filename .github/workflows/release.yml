@@ -72,11 +72,6 @@ jobs:
           name: terraform-docs-action ${{ steps.release.outputs.version }}
           generate_release_notes: true
 
-      # Moves a rolling "latest" tag to this same commit so
-      # `uses: rafalmasiarek/terraform-docs-action@latest` always resolves
-      # to the newest real release - same mechanism as readme-gen's own
-      # release-template.yml. No artifacts to re-upload here (a composite
-      # action's "artifact" is just the repo content at the ref).
       - name: Move latest tag to this release
         shell: bash
         run: |
@@ -84,3 +79,21 @@ jobs:
 
           git tag -f latest
           git push origin refs/tags/latest --force
+
+      - name: Create or update rolling latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view latest >/dev/null 2>&1; then
+            gh release edit latest \
+              --title "latest" \
+              --notes "Rolling prerelease pointing at the newest release. For stable consumption use a semver tag (v*.*.*)."
+          else
+            gh release create latest \
+              --prerelease \
+              --title "latest" \
+              --notes "Rolling prerelease pointing at the newest release. For stable consumption use a semver tag (v*.*.*)."
+          fi
