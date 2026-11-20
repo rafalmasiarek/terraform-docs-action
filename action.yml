@@ -1,0 +1,120 @@
+name: 'terraform-docs-action'
+description: 'Generates Terraform docs via the official terraform-docs image, run as the host UID.'
+author: 'rafalmasiarek'
+
+inputs:
+  working-dir:
+    description: 'Directory to generate docs for.'
+    required: false
+    default: '.'
+  config-file:
+    description: 'terraform-docs config file, resolved relative to the repository root.'
+    required: false
+    default: '.terraform-docs.yml'
+  output-file:
+    description: 'Output file, relative to working-dir.'
+    required: false
+    default: 'docs/terraform.md'
+  output-method:
+    description: '"replace" or "inject".'
+    required: false
+    default: 'replace'
+  template:
+    description: 'Output template override.'
+    required: false
+    default: ''
+  recursive:
+    description: 'Also generate docs for every immediate subdirectory of recursive-path.'
+    required: false
+    default: 'false'
+  recursive-path:
+    description: 'Submodules path to recursively update.'
+    required: false
+    default: 'modules'
+  args:
+    description: 'Additional raw terraform-docs CLI arguments.'
+    required: false
+    default: ''
+  indention:
+    description: 'Markdown/AsciiDoc indention level.'
+    required: false
+    default: '3'
+  terraform-docs-version:
+    description: 'Override the Dockerfile-pinned version for one call.'
+    required: false
+    default: ''
+  user:
+    description: 'Override uid:gid for docker run. Default: $(id -u):$(id -g).'
+    required: false
+    default: ''
+  chown:
+    description: 'Optional uid:gid to chown the output afterward.'
+    required: false
+    default: ''
+  chmod:
+    description: 'Optional mode to chmod the output afterward.'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate docs
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        VERSION="${{ inputs.terraform-docs-version }}"
+        if [ -z "${VERSION}" ]; then
+          VERSION="$(grep -oE 'quay\.io/terraform-docs/terraform-docs:[^[:space:]]+' "${{ github.action_path }}/Dockerfile" | cut -d: -f2)"
+        fi
+
+        EXEC_ARGS=(--indent "${{ inputs.indention }}")
+
+        if [ -n "${{ inputs.args }}" ]; then
+          EXEC_ARGS+=(${{ inputs.args }})
+        fi
+
+        EXEC_ARGS+=(--config "${{ inputs.config-file }}")
+
+        if [ "${{ inputs.output-method }}" = "replace" ] || [ "${{ inputs.output-method }}" = "inject" ]; then
+          EXEC_ARGS+=(--output-mode "${{ inputs.output-method }}")
+          EXEC_ARGS+=(--output-file "${{ inputs.output-file }}")
+        fi
+
+        if [ -n "${{ inputs.template }}" ]; then
+          EXEC_ARGS+=(--output-template "${{ inputs.template }}")
+        fi
+
+        if [ "${{ inputs.recursive }}" = "true" ]; then
+          EXEC_ARGS+=(--recursive --recursive-path "${{ inputs.recursive-path }}")
+        fi
+
+        EXEC_ARGS+=("${{ inputs.working-dir }}")
+
+        USER_OVERRIDE="${{ inputs.user }}"
+        if [ -z "${USER_OVERRIDE}" ]; then
+          USER_OVERRIDE="$(id -u):$(id -g)"
+        fi
+
+        echo "Resolved terraform-docs version: ${VERSION}"
+        echo "Running as: ${USER_OVERRIDE}"
+        echo "terraform-docs markdown ${EXEC_ARGS[*]}"
+
+        docker run --rm \
+          -u "${USER_OVERRIDE}" \
+          -v "${{ github.workspace }}:/workspace" \
+          -w /workspace \
+          "quay.io/terraform-docs/terraform-docs:${VERSION}" \
+          markdown "${EXEC_ARGS[@]}"
+
+        if [ -n "${{ inputs.chown }}" ]; then
+          chown -R "${{ inputs.chown }}" "${{ inputs.working-dir }}"
+        fi
+        if [ -n "${{ inputs.chmod }}" ]; then
+          chmod -R "${{ inputs.chmod }}" "${{ inputs.working-dir }}"
+        fi
+
+branding:
+  icon: 'file-text'
+  color: 'blue'

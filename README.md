@@ -1,0 +1,144 @@
+# terraform-docs-action
+![](https://raw.githubusercontent.com/rafalmasiarek/readme-gen/main/banners/.gitkeep)
+
+Generate Terraform module documentation via the official
+[terraform-docs](https://github.com/terraform-docs/terraform-docs) image.
+
+
+## Usage
+
+```yaml
+name: update-terraform-docs
+on:
+  push:
+    branches: [main]
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Terraform docs
+        uses: rafalmasiarek/terraform-docs-action@latest
+        with:
+          working-dir: .
+          config-file: .terraform-docs.yml
+          output-file: docs/terraform.md
+          output-method: replace
+```
+
+
+## Configuration
+
+### Inputs
+
+| Name | Description | Default | Required |
+| --- | --- | --- | --- |
+| working-dir | Directory to generate docs for. | `.` | false |
+| config-file | terraform-docs config file, resolved relative to the repository root. | `.terraform-docs.yml` | false |
+| output-file | Output file, relative to working-dir. | `docs/terraform.md` | false |
+| output-method | `replace` or `inject`. | `replace` | false |
+| template | Output template override. | `""` | false |
+| recursive | Also generate docs for every immediate subdirectory of recursive-path. | `false` | false |
+| recursive-path | Submodules path to recursively update. | `modules` | false |
+| args | Additional raw terraform-docs CLI arguments. | `""` | false |
+| indention | Markdown/AsciiDoc indention level. | `3` | false |
+| terraform-docs-version | Override the Dockerfile-pinned version for one call. | `""` | false |
+| user | Override uid:gid for docker run. | `$(id -u):$(id -g)` | false |
+| chown | Optional uid:gid to chown the output afterward. | `""` | false |
+| chmod | Optional mode to chmod the output afterward. | `""` | false |
+
+
+#### Output Method (output-method)
+
+- `replace`
+
+  Creates or replaces `output-file` at `working-dir` with the generated content.
+
+- `inject`
+
+  Injects the generated content into `output-file` between
+  `<!-- BEGIN_TF_DOCS -->` and `<!-- END_TF_DOCS -->` delimiters, appending
+  them if the file exists without the delimiters, or creating the file if
+  it doesn't exist.
+
+
+## Keeping the pinned terraform-docs version current
+
+`Dockerfile` pins the image this action runs:
+
+```dockerfile
+FROM quay.io/terraform-docs/terraform-docs:0.25.1
+```
+
+This file is never actually built - `action.yml` reads the tag from it and
+runs the real image directly via `docker run`. Dependabot's `docker`
+ecosystem scans this `Dockerfile` like any other and opens a real bump PR
+whenever a newer `terraform-docs` release ships - no custom bump workflow
+needed.
+
+
+## Examples
+
+### Single folder
+
+```yaml
+- name: Generate Terraform docs
+  uses: rafalmasiarek/terraform-docs-action@latest
+  with:
+    working-dir: .
+```
+
+
+### Recursively under modules/
+
+```yaml
+- name: Generate Terraform docs
+  uses: rafalmasiarek/terraform-docs-action@latest
+  with:
+    working-dir: .
+    recursive: true
+    recursive-path: modules
+```
+
+
+### Pinning a specific terraform-docs version for one call
+
+```yaml
+- name: Generate Terraform docs
+  uses: rafalmasiarek/terraform-docs-action@latest
+  with:
+    working-dir: .
+    terraform-docs-version: "0.24.0"
+```
+
+
+
+## License
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+```text
+The MIT License (MIT)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files, to deal in the Software
+without restriction.
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+Source: https://opensource.org/licenses/MIT
+```
+See [LICENSE](LICENSE) for full details.
+## Authors
+
+- Rafał Masiarek | [website](https://masiarek.pl) | [email](mailto:rafal@masiarek.pl) | [github](https://github.com/rafalmasiarek)
+
+
+<!-- references -->
+
+[repo_link]: https://github.com/rafalmasiarek/terraform-docs-action
